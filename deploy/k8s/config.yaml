@@ -1,0 +1,23 @@
+# Non-secret settings. Secrets (database passwords, Keycloak admin) are created from Secret Manager; see deploy/README.md.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-config
+data:
+  OIDC_ISSUER: https://fund-accounting.example.com/auth/realms/fund-accounting
+  OIDC_JWKS_URI: http://keycloak:8080/auth/realms/fund-accounting/protocol/openid-connect/certs
+  KAFKA_BOOTSTRAP: kafka:9092
+  OTLP_TRACES: http://otel-collector.observability:4318/v1/traces
+  OTLP_METRICS: http://otel-collector.observability:4318/v1/metrics
+  DB_HOST: CLOUD_SQL_PRIVATE_IP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+data:
+  config.js: |
+    window.__CONFIG__ = {
+      oidcAuthority: 'https://fund-accounting.example.com/auth/realms/fund-accounting',
+      oidcClientId: 'fund-accounting-web',
+    };

@@ -1,0 +1,41 @@
+# Default deny, then allow only the paths the architecture needs.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny-ingress }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: public-entry }
+spec:
+  podSelector: { matchExpressions: [{ key: app, operator: In, values: [web, gateway, keycloak] }] }
+  ingress: [{}]          # reached from the load balancer
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: services-from-gateway }
+spec:
+  podSelector: { matchExpressions: [{ key: app, operator: In, values: [reference-data-service, trade-service, accounting-service] }] }
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: gateway } } }]
+      ports: [{ port: http }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: grpc-from-accounting }
+spec:
+  podSelector: { matchLabels: { app: reference-data-service } }
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: accounting-service } } }]
+      ports: [{ port: 9090 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: kafka-from-services }
+spec:
+  podSelector: { matchLabels: { app: kafka } }
+  ingress:
+    - from: [{ podSelector: { matchLabels: { tier: backend } } }]
+      ports: [{ port: 9092 }]

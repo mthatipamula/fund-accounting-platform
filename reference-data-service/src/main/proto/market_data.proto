@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+// Market data for other services, as known at a moment (bitemporal).
+package fundaccounting.marketdata.v1;
+
+option java_multiple_files = true;
+option java_package = "com.fundaccounting.grpc.marketdata.v1";
+
+service MarketDataService {
+  rpc GetSecurities (GetSecuritiesRequest) returns (GetSecuritiesResponse);
+  rpc GetPriceHistory (HistoryRequest) returns (PriceHistoryResponse);
+  rpc GetFxHistory (FxHistoryRequest) returns (FxHistoryResponse);
+  rpc GetCorporateActions (HistoryRequest) returns (CorporateActionsResponse);
+}
+
+message GetSecuritiesRequest { repeated string security_ids = 1; }   // empty = all
+
+message Security {
+  string id = 1;
+  string symbol = 2;
+  string name = 3;
+  string asset_class = 4;       // EQUITY, BOND
+  string currency = 5;
+  string coupon_rate = 6;       // decimals are strings to keep exact values
+  int32 coupons_per_year = 7;
+  string issue_date = 8;        // ISO dates; empty for equities
+  string maturity_date = 9;
+  string day_count = 10;
+}
+message GetSecuritiesResponse { repeated Security securities = 1; }
+
+// known_at: ISO-8601 instant; empty = now. Dates are inclusive ISO dates.
+message HistoryRequest {
+  repeated string security_ids = 1;
+  string from_date = 2;
+  string to_date = 3;
+  string known_at = 4;
+}
+message PricePoint { string security_id = 1; string date = 2; string price = 3; }
+message PriceHistoryResponse { repeated PricePoint points = 1; }
+
+message FxHistoryRequest {
+  repeated string currencies = 1;
+  string base_currency = 2;
+  string from_date = 3;
+  string to_date = 4;
+  string known_at = 5;
+}
+message FxPoint { string currency = 1; string date = 2; string rate = 3; }
+message FxHistoryResponse { repeated FxPoint points = 1; }
+
+message CorporateAction {
+  string id = 1;
+  int32 version = 2;
+  string security_id = 3;
+  string type = 4;              // CASH_DIVIDEND, SPLIT
+  string ex_date = 5;
+  string pay_date = 6;
+  string amount_per_share = 7;
+  string ratio = 8;
+  string recorded_at = 9;
+}
+message CorporateActionsResponse { repeated CorporateAction actions = 1; }

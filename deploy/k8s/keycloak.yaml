@@ -1,0 +1,45 @@
+# Keycloak served under /auth on the public host; its database is the "keycloak" database on Cloud SQL.
+apiVersion: v1
+kind: Service
+metadata: { name: keycloak }
+spec:
+  selector: { app: keycloak }
+  ports: [{ name: http, port: 8080 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: keycloak }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: keycloak } }
+  template:
+    metadata: { labels: { app: keycloak } }
+    spec:
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.4
+          args: [start, --import-realm, --http-enabled=true, --proxy-headers=xforwarded, --http-relative-path=/auth,
+                 "--hostname=https://fund-accounting.example.com/auth", --hostname-backchannel-dynamic=true, --health-enabled=true]
+          env:
+            - { name: KC_DB, value: postgres }
+            - name: KC_DB_URL
+              value: jdbc:postgresql://$(DB_HOST):5432/keycloak
+            - { name: DB_HOST, valueFrom: { configMapKeyRef: { name: platform-config, key: DB_HOST } } }
+            - { name: KC_DB_USERNAME, value: keycloak }
+            - { name: KC_DB_PASSWORD, valueFrom: { secretKeyRef: { name: platform-secrets, key: DB_PASSWORD_KEYCLOAK } } }
+            - { name: KC_BOOTSTRAP_ADMIN_USERNAME, value: admin }
+            - { name: KC_BOOTSTRAP_ADMIN_PASSWORD, valueFrom: { secretKeyRef: { name: platform-secrets, key: KEYCLOAK_ADMIN_PASSWORD } } }
+            - { name: WEB_ORIGIN, value: https://fund-accounting.example.com }
+            - { name: SEEDER_CLIENT_SECRET, valueFrom: { secretKeyRef: { name: platform-secrets, key: SEEDER_CLIENT_SECRET } } }
+            - { name: DEMO_ADMIN_PASSWORD, valueFrom: { secretKeyRef: { name: platform-secrets, key: DEMO_ADMIN_PASSWORD } } }
+            - { name: DEMO_ACCOUNTANT_PASSWORD, valueFrom: { secretKeyRef: { name: platform-secrets, key: DEMO_ACCOUNTANT_PASSWORD } } }
+            - { name: DEMO_VIEWER_PASSWORD, valueFrom: { secretKeyRef: { name: platform-secrets, key: DEMO_VIEWER_PASSWORD } } }
+          ports: [{ containerPort: 8080 }, { containerPort: 9000, name: management }]
+          readinessProbe: { httpGet: { path: /auth/health/ready, port: 9000 }, periodSeconds: 10 }
+          resources: { requests: { cpu: 500m, memory: 1Gi }, limits: { memory: 1Gi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: realm, mountPath: /opt/keycloak/data/import, readOnly: true }]
+      volumes:
+        - name: realm
+          configMap: { name: keycloak-realm }

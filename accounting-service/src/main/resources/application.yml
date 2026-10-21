@@ -1,0 +1,32 @@
+spring:
+  application.name: accounting-service
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/accounting}
+    username: ${DATABASE_USER:accounting}
+    password: ${DATABASE_PASSWORD:accounting}
+    hikari.maximum-pool-size: 10
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      acks: all
+      properties.enable.idempotence: true
+    consumer:
+      auto-offset-reset: earliest
+  grpc.client.channel.refdata.target: ${REFDATA_GRPC:static://localhost:9090}
+  servlet.multipart.max-file-size: 10MB
+  threads.virtual.enabled: true
+
+server:
+  port: ${PORT:8083}
+  shutdown: graceful
+
+platform.security:
+  issuer: ${OIDC_ISSUER:http://localhost:8180/realms/fund-accounting}
+  jwk-set-uri: ${OIDC_JWKS_URI:http://localhost:8180/realms/fund-accounting/protocol/openid-connect/certs}
+
+management:
+  endpoints.web.exposure.include: health,info,prometheus
+  endpoint.health.probes.enabled: true
+  tracing.sampling.probability: 1.0
+  opentelemetry.tracing.export.otlp.endpoint: ${OTLP_TRACES:http://localhost:4318/v1/traces}
+  otlp.metrics.export.url: ${OTLP_METRICS:http://localhost:4318/v1/metrics}

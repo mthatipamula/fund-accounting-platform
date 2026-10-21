@@ -1,0 +1,62 @@
+{
+  "realm": "fund-accounting",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 900,
+  "roles": {
+    "realm": [
+      { "name": "fa-viewer", "description": "Read reports and records" },
+      { "name": "fa-accountant", "description": "Enter and correct trades, prices, capital activity" },
+      { "name": "fa-admin", "description": "Close and reopen periods; set up funds" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "fund-accounting-web",
+      "name": "Fund Accounting web app",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["${WEB_ORIGIN:http://localhost:5173}/*"],
+      "webOrigins": ["${WEB_ORIGIN:http://localhost:5173}"],
+      "attributes": { "pkce.code.challenge.method": "S256", "post.logout.redirect.uris": "${WEB_ORIGIN:http://localhost:5173}/*" }
+    },
+    {
+      "clientId": "fa-seeder",
+      "name": "Demo data loader",
+      "publicClient": false,
+      "secret": "${SEEDER_CLIENT_SECRET}",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-fa-seeder",
+      "enabled": true,
+      "serviceAccountClientId": "fa-seeder",
+      "realmRoles": ["fa-accountant", "fa-admin", "fa-viewer"]
+    },
+    {
+      "username": "admin", "firstName": "Avery", "lastName": "Admin", "email": "admin@example.test",
+      "emailVerified": true, "enabled": true,
+      "credentials": [{ "type": "password", "value": "${DEMO_ADMIN_PASSWORD}", "temporary": false }],
+      "realmRoles": ["fa-admin", "fa-accountant", "fa-viewer"]
+    },
+    {
+      "username": "accountant", "firstName": "Casey", "lastName": "Accountant", "email": "accountant@example.test",
+      "emailVerified": true, "enabled": true,
+      "credentials": [{ "type": "password", "value": "${DEMO_ACCOUNTANT_PASSWORD}", "temporary": false }],
+      "realmRoles": ["fa-accountant", "fa-viewer"]
+    },
+    {
+      "username": "viewer", "firstName": "Vic", "lastName": "Viewer", "email": "viewer@example.test",
+      "emailVerified": true, "enabled": true,
+      "credentials": [{ "type": "password", "value": "${DEMO_VIEWER_PASSWORD}", "temporary": false }],
+      "realmRoles": ["fa-viewer"]
+    }
+  ]
+}
