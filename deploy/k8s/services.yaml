@@ -1,0 +1,176 @@
+# Generated layout: one Service + Deployment + PodDisruptionBudget per backend service.
+apiVersion: v1
+kind: Service
+metadata: { name: reference-data-service }
+spec:
+  selector: { app: reference-data-service }
+  ports: [{ name: http, port: 8081 }, { name: grpc, port: 9090 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: reference-data-service }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: reference-data-service } }
+  template:
+    metadata: { labels: { app: reference-data-service, tier: backend } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, seccompProfile: { type: RuntimeDefault } }
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: app
+          image: reference-data-service
+          envFrom: [{ configMapRef: { name: platform-config } }]
+          env:
+            - { name: PORT, value: "8081" }
+            - { name: DB_HOST, valueFrom: { configMapKeyRef: { name: platform-config, key: DB_HOST } } }
+            - { name: DATABASE_URL, value: "jdbc:postgresql://$(DB_HOST):5432/refdata" }
+            - { name: DATABASE_USER, value: refdata }
+            - { name: DATABASE_PASSWORD, valueFrom: { secretKeyRef: { name: platform-secrets, key: DB_PASSWORD_REFDATA } } }
+          ports: [{ containerPort: 8081, name: http }, { containerPort: 9090, name: grpc }]
+          startupProbe: { httpGet: { path: /actuator/health/liveness, port: http }, periodSeconds: 3, failureThreshold: 60 }
+          livenessProbe: { httpGet: { path: /actuator/health/liveness, port: http }, periodSeconds: 10 }
+          readinessProbe: { httpGet: { path: /actuator/health/readiness, port: http }, periodSeconds: 5 }
+          resources: { requests: { cpu: 250m, memory: 768Mi }, limits: { memory: 768Mi } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: reference-data-service }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: reference-data-service } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: trade-service }
+spec:
+  selector: { app: trade-service }
+  ports: [{ name: http, port: 8082 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: trade-service }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: trade-service } }
+  template:
+    metadata: { labels: { app: trade-service, tier: backend } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, seccompProfile: { type: RuntimeDefault } }
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: app
+          image: trade-service
+          envFrom: [{ configMapRef: { name: platform-config } }]
+          env:
+            - { name: PORT, value: "8082" }
+            - { name: DB_HOST, valueFrom: { configMapKeyRef: { name: platform-config, key: DB_HOST } } }
+            - { name: DATABASE_URL, value: "jdbc:postgresql://$(DB_HOST):5432/trades" }
+            - { name: DATABASE_USER, value: trades }
+            - { name: DATABASE_PASSWORD, valueFrom: { secretKeyRef: { name: platform-secrets, key: DB_PASSWORD_TRADES } } }
+          ports: [{ containerPort: 8082, name: http }]
+          startupProbe: { httpGet: { path: /actuator/health/liveness, port: http }, periodSeconds: 3, failureThreshold: 60 }
+          livenessProbe: { httpGet: { path: /actuator/health/liveness, port: http }, periodSeconds: 10 }
+          readinessProbe: { httpGet: { path: /actuator/health/readiness, port: http }, periodSeconds: 5 }
+          resources: { requests: { cpu: 250m, memory: 768Mi }, limits: { memory: 768Mi } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: trade-service }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: trade-service } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: accounting-service }
+spec:
+  selector: { app: accounting-service }
+  ports: [{ name: http, port: 8083 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: accounting-service }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: accounting-service } }
+  template:
+    metadata: { labels: { app: accounting-service, tier: backend } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, seccompProfile: { type: RuntimeDefault } }
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: app
+          image: accounting-service
+          envFrom: [{ configMapRef: { name: platform-config } }]
+          env:
+            - { name: PORT, value: "8083" }
+            - { name: DB_HOST, valueFrom: { configMapKeyRef: { name: platform-config, key: DB_HOST } } }
+            - { name: DATABASE_URL, value: "jdbc:postgresql://$(DB_HOST):5432/accounting" }
+            - { name: DATABASE_USER, value: accounting }
+            - { name: DATABASE_PASSWORD, valueFrom: { secretKeyRef: { name: platform-secrets, key: DB_PASSWORD_ACCOUNTING } } }
+            - { name: REFDATA_GRPC, value: "static://reference-data-service:9090" }
+          ports: [{ containerPort: 8083, name: http }]
+          startupProbe: { httpGet: { path: /actuator/health/liveness, port: http }, periodSeconds: 3, failureThreshold: 60 }
+          livenessProbe: { httpGet: { path: /actuator/health/liveness, port: http }, periodSeconds: 10 }
+          readinessProbe: { httpGet: { path: /actuator/health/readiness, port: http }, periodSeconds: 5 }
+          resources: { requests: { cpu: 250m, memory: 768Mi }, limits: { memory: 768Mi } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: accounting-service }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: accounting-service } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: gateway }
+spec:
+  selector: { app: gateway }
+  ports: [{ name: http, port: 8080 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: gateway }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: gateway } }
+  template:
+    metadata: { labels: { app: gateway, tier: backend } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, seccompProfile: { type: RuntimeDefault } }
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: app
+          image: gateway
+          envFrom: [{ configMapRef: { name: platform-config } }]
+          env:
+            - { name: PORT, value: "8080" }
+            - { name: REFDATA_URL, value: "http://reference-data-service:8081" }
+            - { name: TRADES_URL, value: "http://trade-service:8082" }
+            - { name: ACCOUNTING_URL, value: "http://accounting-service:8083" }
+          ports: [{ containerPort: 8080, name: http }]
+          startupProbe: { httpGet: { path: /actuator/health/liveness, port: http }, periodSeconds: 3, failureThreshold: 60 }
+          livenessProbe: { httpGet: { path: /actuator/health/liveness, port: http }, periodSeconds: 10 }
+          readinessProbe: { httpGet: { path: /actuator/health/readiness, port: http }, periodSeconds: 5 }
+          resources: { requests: { cpu: 250m, memory: 768Mi }, limits: { memory: 768Mi } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: gateway }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: gateway } }

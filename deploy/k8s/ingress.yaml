@@ -1,0 +1,23 @@
+# One public host over HTTPS (Google-managed certificate). /api → gateway, /auth → Keycloak, everything else → web.
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata: { name: fund-accounting-cert }
+spec:
+  domains: [fund-accounting.example.com]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fund-accounting
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: fund-accounting-ip
+    networking.gke.io/managed-certificates: fund-accounting-cert
+    kubernetes.io/ingress.allow-http: "false"
+spec:
+  rules:
+    - host: fund-accounting.example.com
+      http:
+        paths:
+          - { path: /api, pathType: Prefix, backend: { service: { name: gateway, port: { number: 8080 } } } }
+          - { path: /auth, pathType: Prefix, backend: { service: { name: keycloak, port: { number: 8080 } } } }
+          - { path: /, pathType: Prefix, backend: { service: { name: web, port: { number: 8080 } } } }

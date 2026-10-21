@@ -1,0 +1,20 @@
+# GKE deployment. Set images with:
+#   kustomize edit set image REGISTRY=<region>-docker.pkg.dev/<project>/fund-accounting  (see deploy/README.md)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: fund-accounting
+resources:
+  - namespace.yaml
+  - config.yaml
+  - kafka.yaml
+  - keycloak.yaml
+  - services.yaml
+  - web.yaml
+  - network-policies.yaml
+  - ingress.yaml
+images:
+  - { name: reference-data-service, newName: REGISTRY/reference-data-service, newTag: latest }
+  - { name: trade-service, newName: REGISTRY/trade-service, newTag: latest }
+  - { name: accounting-service, newName: REGISTRY/accounting-service, newTag: latest }
+  - { name: gateway, newName: REGISTRY/gateway, newTag: latest }
+  - { name: web, newName: REGISTRY/web, newTag: latest }

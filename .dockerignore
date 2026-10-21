@@ -1,0 +1,7 @@
+**/build
+**/.gradle
+web
+infra
+deploy
+.env
+.git
